@@ -14,19 +14,23 @@ These features are documented and confirmed working in the codebase:
 
 - [x] **DMARC Aggregate Report Parsing** — XML, ZIP, and GZIP formats supported
       via `defusedxml` (`backend/app/services/dmarc_parser.py`)
-- [x] **Database Persistence** — SQLAlchemy ORM with SQLite and PostgreSQL support,
-      Alembic migrations (`backend/app/core/database.py`, `backend/app/models/`)
 - [x] **Report Upload** — Web interface for uploading DMARC reports with multi-layer
-      file validation (`backend/app/api/api_v1/endpoints/reports.py`)
+      file validation; parsed reports are currently stored in the in-memory
+      `ReportStore` (`backend/app/api/api_v1/endpoints/reports.py`,
+      `backend/app/services/report_store.py`)
 - [x] **IMAP Integration** — Auto-fetch reports from mailbox with background
-      scheduler (`backend/app/services/imap_client.py`)
+      scheduler; ingested reports are currently stored in the in-memory
+      `ReportStore` (`backend/app/services/imap_client.py`)
 - [x] **Basic Dashboard** — Domain overview with compliance stats, Chart.js
-      visualizations on domain detail page (`backend/app/templates/`)
+      visualizations on domain detail page; data is sourced from the in-memory
+      report store and live DNS checks (`backend/app/templates/`)
 - [x] **Security Hardening** — Authentication middleware, security headers (CSP,
       HSTS, X-Frame-Options), defusedxml for XXE protection, restricted CORS,
       sanitized error responses (`backend/app/middleware/security.py`,
       `backend/app/core/security.py`)
-- [x] **Docker Deployment** — Docker Compose setup for production deployment
+- [x] **Docker Deployment Scaffolding** — Docker Compose and backend image setup
+      exist for local/containerized deployment, but production hardening remains
+      to be completed
       (`docker-compose.yml`, `backend/Dockerfile`)
 - [x] **Setup Wizard** — Basic guided onboarding endpoints, though in-memory only
       (`backend/app/api/api_v1/endpoints/setup.py`)
@@ -41,6 +45,35 @@ These features are documented and confirmed working in the codebase:
 
 The following features are described in the README, documentation, or roadmap but
 have no working implementation in the codebase yet.
+
+### Database-Backed Report Persistence
+- **Documented in**: TODO.md ("Database Persistence"), backend SQLAlchemy models,
+  and Alembic migrations.
+- **Current state**: SQLAlchemy configuration, models, and migrations exist, but
+  uploaded and IMAP-ingested DMARC reports are stored in the in-memory
+  `ReportStore`. Data is lost on process restart and is not shared across app
+  instances.
+- [ ] Persist uploaded reports, report records, domain summaries, and source data
+      through SQLAlchemy models
+- [ ] Update dashboard, reports, domains, DNS selector, and source endpoints to
+      read from the database instead of `ReportStore`
+- [ ] Add duplicate-report detection at the database layer
+- [ ] Add migration/backfill path if any existing deployments need in-memory or
+      exported report data imported
+
+### Production-Ready Docker Deployment
+- **Documented in**: TODO.md ("Docker Deployment") and deployment docs.
+- **Current state**: `docker-compose.yml` and `backend/Dockerfile` exist, but the
+  compose file is configured like a development stack: source bind mount,
+  `DEBUG=True`, `ENVIRONMENT=development`, hardcoded database credentials, and a
+  placeholder `SECRET_KEY`.
+- [ ] Add a production Compose profile or separate production Compose file
+- [ ] Remove source bind mounts from production deployment
+- [ ] Move secrets and database credentials to environment files or secret
+      management
+- [ ] Set production-safe defaults for `DEBUG`, `ENVIRONMENT`, auth, CORS, and
+      TLS/proxy headers
+- [ ] Document production upgrade, backup, and migration flow
 
 ### Cloudflare Integration
 - **Documented in**: README.md ("Cloudflare-integrated"), docs/development/roadmap.md (Milestone 8)
