@@ -19,7 +19,7 @@ def test_create_domain_adds_domain_to_store_and_database(
     assert data["name"] == "example.com"
     assert data["description"] == "Primary mail domain"
     assert data["reports_count"] == 0
-    assert "example.com" in ReportStore.get_instance().get_domains()
+    assert ReportStore.get_instance().get_domains() == ["example.com"]
 
     domain = db_session.query(Domain).filter(Domain.name == "example.com").first()
     assert domain is not None
