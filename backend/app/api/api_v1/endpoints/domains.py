@@ -29,7 +29,6 @@ class DomainBase(BaseModel):
 
     name: str
     description: Optional[str] = None
-    policy: Optional[str] = None
 
 
 class DomainCreate(DomainBase):
@@ -41,6 +40,7 @@ class DomainCreate(DomainBase):
 class DomainResponse(DomainBase):
     """Domain response schema"""
 
+    policy: Optional[str] = None
     reports_count: int = 0
     emails_count: int = 0
     compliance_rate: float = 0.0
@@ -206,7 +206,7 @@ async def create_domain(domain_data: DomainCreate, db: Session = Depends(get_db)
     return DomainResponse(
         name=domain_name,
         description=description,
-        policy=domain_data.policy,
+        policy=None,
         reports_count=0,
         emails_count=0,
         compliance_rate=0.0,

@@ -51,6 +51,23 @@ def test_create_domain_rejects_duplicate_when_store_is_cleared(
     assert second.json()["detail"] == "Domain already exists"
 
 
+def test_create_domain_does_not_echo_client_supplied_policy(
+    client: TestClient,
+    db_session: Session,
+):
+    response = client.post(
+        "/api/v1/domains",
+        json={"name": "example.com", "policy": "reject"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["policy"] is None
+
+    domain = db_session.query(Domain).filter(Domain.name == "example.com").first()
+    assert domain is not None
+    assert domain.dmarc_policy is None
+
+
 def test_create_domain_rejects_invalid_domain(client: TestClient):
     response = client.post("/api/v1/domains", json={"name": "bad domain"})
 
