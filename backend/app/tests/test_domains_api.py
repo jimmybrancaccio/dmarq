@@ -37,6 +37,20 @@ def test_create_domain_rejects_duplicate(client: TestClient):
     assert second.json()["detail"] == "Domain already exists"
 
 
+def test_create_domain_rejects_duplicate_when_store_is_cleared(
+    client: TestClient,
+):
+    first = client.post("/api/v1/domains", json={"name": "example.com"})
+    assert first.status_code == 201
+
+    ReportStore.get_instance().clear()
+
+    second = client.post("/api/v1/domains", json={"name": "example.com"})
+
+    assert second.status_code == 409
+    assert second.json()["detail"] == "Domain already exists"
+
+
 def test_create_domain_rejects_invalid_domain(client: TestClient):
     response = client.post("/api/v1/domains", json={"name": "bad domain"})
 
