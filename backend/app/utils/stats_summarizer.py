@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -130,11 +131,24 @@ class StatsSummarizer:
         Returns:
             Path to the cache file
         """
+        base_dir = os.path.abspath(self.cache_dir)
         if domain_id is None:
-            return os.path.join(self.cache_dir, "global_summary.json")
-        # Sanitize domain_id to use as filename
-        safe_domain = domain_id.replace(".", "_").replace("/", "_")
-        return os.path.join(self.cache_dir, f"domain_{safe_domain}.json")
+            return os.path.join(base_dir, "global_summary.json")
+
+        # Sanitize domain_id to a strict filename token (allowlist approach).
+        safe_domain = re.sub(r"[^A-Za-z0-9_-]", "_", domain_id)
+        if not safe_domain:
+            safe_domain = "unknown"
+
+        filename = f"domain_{safe_domain}.json"
+        candidate_path = os.path.abspath(os.path.join(base_dir, filename))
+
+        # Ensure the resolved path stays within the cache directory.
+        if not candidate_path.startswith(base_dir + os.sep):
+            logger.warning("Unsafe cache path derived from domain_id; using fallback filename")
+            return os.path.join(base_dir, "domain_unknown.json")
+
+        return candidate_path
 
     def calculate_summary_statistics(
         self, db: Session, domain_id: Optional[str] = None
