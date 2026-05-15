@@ -89,7 +89,9 @@ async def fetch_imap_reports(
             "processed_emails": results["processed"],
             "reports_found": results["reports_found"],
             "new_domains": results["new_domains"],
-            "errors": results["errors"] if "errors" in results and results["errors"] else None,
+            "errors": "Some emails could not be processed. Check server logs for details."
+            if "errors" in results and results["errors"]
+            else None,
             "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
