@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -120,6 +121,28 @@ class StatsSummarizer:
             if os.path.exists(cache_file):
                 os.remove(cache_file)
 
+    def _sanitize_domain_id(self, domain_id: str) -> str:
+        """
+        Validate and sanitize a domain identifier for safe filename usage.
+
+        Args:
+            domain_id: Domain identifier provided by caller
+
+        Returns:
+            Sanitized domain identifier safe for filename composition
+
+        Raises:
+            ValueError: If the domain identifier contains unsafe characters
+        """
+        normalized_domain = domain_id.strip()
+        if not normalized_domain:
+            raise ValueError("Invalid domain_id: empty value")
+
+        if not re.fullmatch(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*", normalized_domain):
+            raise ValueError("Invalid domain_id: contains unsafe characters")
+
+        return normalized_domain.replace(".", "_")
+
     def _get_cache_filename(self, domain_id: Optional[str] = None) -> str:
         """
         Get the filename for a cache file
@@ -130,11 +153,19 @@ class StatsSummarizer:
         Returns:
             Path to the cache file
         """
+        cache_root = os.path.realpath(self.cache_dir)
+
         if domain_id is None:
-            return os.path.join(self.cache_dir, "global_summary.json")
-        # Sanitize domain_id to use as filename
-        safe_domain = domain_id.replace(".", "_").replace("/", "_")
-        return os.path.join(self.cache_dir, f"domain_{safe_domain}.json")
+            cache_file = os.path.join(cache_root, "global_summary.json")
+        else:
+            safe_domain = self._sanitize_domain_id(domain_id)
+            cache_file = os.path.join(cache_root, f"domain_{safe_domain}.json")
+
+        resolved_cache_file = os.path.realpath(cache_file)
+        if os.path.commonpath([cache_root, resolved_cache_file]) != cache_root:
+            raise ValueError("Resolved cache path is outside cache directory")
+
+        return resolved_cache_file
 
     def calculate_summary_statistics(
         self, db: Session, domain_id: Optional[str] = None
