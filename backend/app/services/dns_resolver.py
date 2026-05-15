@@ -331,8 +331,12 @@ class CloudflareDNSProvider(BaseDNSProvider):
                 for answer in data.get("Answer", []):
                     if answer.get("type") == 12:  # PTR record type
                         return answer.get("data", "").rstrip(".")
-        except (httpx.RequestError, httpx.HTTPStatusError, httpx.TimeoutException):
-            pass
+        except (httpx.RequestError, httpx.HTTPStatusError, httpx.TimeoutException) as exc:
+            logger.warning(
+                "PTR lookup failed for ip=%s via Cloudflare DoH: %s",
+                _sanitize_for_log(ip),
+                exc,
+            )
         return None
 
 
