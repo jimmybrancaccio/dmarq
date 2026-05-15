@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -150,7 +151,7 @@ class StatsSummarizer:
         if domain_id is None:
             return os.path.join(self.cache_dir, "global_summary.json")
         # Sanitize domain_id to use as filename
-        safe_domain = domain_id.replace(".", "_").replace("/", "_")
+        safe_domain = re.sub(r"[^A-Za-z0-9_-]", "_", domain_id)
         return os.path.join(self.cache_dir, f"domain_{safe_domain}.json")
 
     def calculate_summary_statistics(
