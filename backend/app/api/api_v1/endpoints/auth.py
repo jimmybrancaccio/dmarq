@@ -40,12 +40,15 @@ settings = get_settings()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-_SAFE_NEXT_PREFIXES = ("/",)  # only allow relative redirects after login
+_SAFE_NEXT_PATHS = {
+    "/",  # default landing page
+    "/login",
+}  # explicit server-side allowlist for post-login redirects
 
 
 def _safe_next(next_url: Optional[str]) -> str:
     """Validate and return a safe post-login redirect path."""
-    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+    if next_url in _SAFE_NEXT_PATHS:
         return next_url
     return "/"
 
