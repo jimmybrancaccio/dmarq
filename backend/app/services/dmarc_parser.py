@@ -98,7 +98,7 @@ class DMARCParser:
                             )
                         return z.read(file_info.filename)
         except zipfile.BadZipFile:
-            pass
+            logger.warning("Invalid ZIP archive provided; unable to extract XML content.")
         return None
 
     @staticmethod
