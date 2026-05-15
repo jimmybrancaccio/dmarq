@@ -147,8 +147,19 @@ class StatsSummarizer:
 
         cache_dir_real = os.path.realpath(self.cache_dir)
         candidate_real = os.path.realpath(candidate)
-        if os.path.commonpath([cache_dir_real, candidate_real]) != cache_dir_real:
-            raise ValueError("Invalid cache file path")
+        try:
+            common_root = os.path.commonpath([cache_dir_real, candidate_real])
+        except ValueError as exc:
+            raise ValueError(
+                f"Cache file path {candidate_real} is outside allowed directory {cache_dir_real}"
+            ) from exc
+        if common_root != cache_dir_real or (
+            candidate_real != cache_dir_real
+            and not candidate_real.startswith(cache_dir_real + os.sep)
+        ):
+            raise ValueError(
+                f"Cache file path {candidate_real} is outside allowed directory {cache_dir_real}"
+            )
 
         return candidate_real
 
