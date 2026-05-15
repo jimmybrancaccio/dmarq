@@ -21,6 +21,18 @@ class TestBackendCorsOriginsValidator:
             "http://localhost:5173",
         ]
 
+    def test_comma_separated_env_var(self, monkeypatch):
+        """Comma-separated environment values are split before settings validation."""
+        monkeypatch.setenv(
+            "BACKEND_CORS_ORIGINS",
+            "http://localhost:3000,http://localhost:5173",
+        )
+        settings = Settings()
+        assert settings.BACKEND_CORS_ORIGINS == [
+            "http://localhost:3000",
+            "http://localhost:5173",
+        ]
+
     def test_single_origin_string(self):
         """A single origin as a string is wrapped in a list."""
         settings = Settings(BACKEND_CORS_ORIGINS="https://example.com")

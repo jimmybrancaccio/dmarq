@@ -33,7 +33,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    BACKEND_CORS_ORIGINS: Union[str, List[str]] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ]
 
     # IMAP Settings
     IMAP_SERVER: Optional[str] = None
