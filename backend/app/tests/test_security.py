@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 import app.services.dmarc_parser as parser_module
 from app.core.security import add_api_key, generate_api_key, verify_api_key
 from app.main import create_app
-from app.services.dmarc_parser import DMARCParser
 from app.utils.domain_validator import validate_domain, validate_domain_config
 
 
@@ -120,7 +119,7 @@ class TestFileUploadSecurity:
     def test_file_size_limit(self):
         large_content = b"x" * (11 * 1024 * 1024)
         with pytest.raises(ValueError, match="too large"):
-            DMARCParser.parse_file(large_content, "test.xml")
+            parser_module.DMARCParser.parse_file(large_content, "test.xml")
 
 
 class TestXMLParsingSecurity:
@@ -148,7 +147,7 @@ class TestXMLParsingSecurity:
 """
         # defusedxml should raise an error or not expand the entity
         try:
-            result = DMARCParser.parse_file(xxe_payload, "test.xml")
+            result = parser_module.DMARCParser.parse_file(xxe_payload, "test.xml")
             org_name = result.get("org_name", "")
             assert "root:" not in org_name and "/bin" not in org_name
         except Exception:  # pylint: disable=broad-exception-caught
