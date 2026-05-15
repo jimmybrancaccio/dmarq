@@ -84,16 +84,24 @@ async def fetch_imap_reports(
     try:
         results = imap_client.fetch_reports(days=days)
 
+        if not results.get("success"):
+            raise HTTPException(
+                status_code=500,
+                detail=results.get("error", "Failed to fetch reports. Check server logs for details."),
+            )
+
         return {
-            "success": results["success"],
-            "processed_emails": results["processed"],
-            "reports_found": results["reports_found"],
-            "new_domains": results["new_domains"],
+            "success": True,
+            "processed_emails": results.get("processed", 0),
+            "reports_found": results.get("reports_found", 0),
+            "new_domains": results.get("new_domains", []),
             "errors": "Some emails could not be processed. Check server logs for details."
-            if "errors" in results and results["errors"]
+            if results.get("errors")
             else None,
             "timestamp": datetime.now().isoformat(),
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Error fetching IMAP reports: %s", str(e))
         raise HTTPException(
