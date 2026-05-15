@@ -207,7 +207,7 @@ class TestAuthMeEndpoint:
         assert res.status_code == 401
 
 
-# ── /api/v1/auth/callback ────────────────────────────────────────────────────
+# ── /api/v1/auth/callback ─────────────────────────────────────────────────────
 
 
 class TestCallbackEndpoint:
@@ -292,7 +292,7 @@ class TestCallbackEndpoint:
         assert res.headers["location"] == "/dashboard"
 
 
-# ── /api/v1/auth/sign-in ─────────────────────────────────────────────────────
+# ── /api/v1/auth/sign-in ──────────────────────────────────────────────────────
 
 
 class TestSignInEndpoint:
@@ -304,7 +304,7 @@ class TestSignInEndpoint:
         assert res.status_code == 503
 
 
-# ── /api/v1/auth/sign-out ────────────────────────────────────────────────────
+# ── /api/v1/auth/sign-out ─────────────────────────────────────────────────────
 
 
 class TestSignOutEndpoint:
@@ -361,7 +361,7 @@ class TestAuthDisabled:
             mock_settings.AUTH_DISABLED = True
             mock_req = MagicMock()
             mock_req.cookies = {}
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 require_admin_auth(request=mock_req, api_key=None, bearer=None)
             )
         assert result["auth_type"] == "disabled"
