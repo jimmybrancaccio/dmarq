@@ -120,6 +120,30 @@ class ReportStore:
         # Recompute all summary stats from the full list to keep them consistent
         self._recompute_domain_stats(domain)
 
+    def add_domain(self, domain: str) -> bool:
+        """
+        Add a monitored domain without any reports yet.
+
+        Args:
+            domain: Domain name
+
+        Returns:
+            True if the domain was added, False if it already existed
+        """
+        if domain in self.domain_reports:
+            return False
+
+        self.domain_reports[domain] = []
+        self.domain_summary[domain] = {
+            "total_count": 0,
+            "passed_count": 0,
+            "failed_count": 0,
+            "reports_processed": 0,
+            "compliance_rate": 0,
+        }
+        self.domain_sources[domain] = {}
+        return True
+
     def get_domains(self) -> List[str]:
         """
         Get list of all domains with reports

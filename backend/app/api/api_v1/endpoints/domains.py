@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -16,6 +17,7 @@ from app.services.dns_resolver import (
     get_default_provider,
 )
 from app.services.report_store import ReportStore
+from app.utils.domain_validator import validate_domain_config
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +29,18 @@ class DomainBase(BaseModel):
 
     name: str
     description: Optional[str] = None
-    policy: Optional[str] = None
+
+
+class DomainCreate(DomainBase):
+    """Domain creation schema"""
+
+    name: str = Field(..., min_length=1, max_length=253)
 
 
 class DomainResponse(DomainBase):
     """Domain response schema"""
 
+    policy: Optional[str] = None
     reports_count: int = 0
     emails_count: int = 0
     compliance_rate: float = 0.0
@@ -119,6 +127,11 @@ class SelectorRequest(BaseModel):
     selector: str = Field(..., min_length=1, description="DKIM selector name")
 
 
+def _normalize_domain_name(domain_name: str) -> str:
+    """Return a canonical domain name for lookup and storage."""
+    return domain_name.strip().lower()
+
+
 def _get_selectors_from_reports(store: "ReportStore", domain: str) -> List[str]:
     """Extract DKIM selectors seen in stored DMARC reports for *domain*.
 
@@ -143,6 +156,61 @@ def _get_domain_selectors_from_db(db: Session, domain_name: str) -> List[str]:
     if domain_db and domain_db.dkim_selectors:
         return [s.strip() for s in domain_db.dkim_selectors.split(",") if s.strip()]
     return []
+
+
+@router.post("", response_model=DomainResponse, status_code=status.HTTP_201_CREATED)
+async def create_domain(domain_data: DomainCreate, db: Session = Depends(get_db)):
+    """
+    Add a domain to the monitored domain list.
+
+    Domains can be added before any DMARC reports have arrived. Report ingestion
+    will later attach data to the same in-memory domain entry.
+    """
+    domain_name = _normalize_domain_name(domain_data.name)
+    description = domain_data.description.strip() if domain_data.description else None
+
+    validation = validate_domain_config({"name": domain_name, "description": description})
+    if not validation["valid"]:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=validation["errors"],
+        )
+
+    domain_db = db.query(Domain).filter(Domain.name == domain_name).first()
+    if domain_db:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Domain already exists",
+        )
+
+    store = ReportStore.get_instance()
+    if domain_name in store.get_domains():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Domain already exists",
+        )
+
+    try:
+        domain_db = Domain(name=domain_name, description=description)
+        db.add(domain_db)
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Domain already exists",
+        ) from exc
+
+    store.add_domain(domain_name)
+
+    return DomainResponse(
+        name=domain_name,
+        description=description,
+        policy=None,
+        reports_count=0,
+        emails_count=0,
+        compliance_rate=0.0,
+    )
 
 
 @router.get("/summary", response_model=DomainSummaryResponse)

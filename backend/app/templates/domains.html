@@ -21,9 +21,9 @@
             {% call card_header() %}
                 <div class="flex items-center justify-between">
                     {% call card_title() %}Monitored Domains{% endcall %}
-                    {% call button(variant="outline", size="sm") %}
+                    <button type="button" class="btn btn-outline btn-sm" @click="openAddDomainModal()">
                         <span class="mr-1">+</span> Add Domain
-                    {% endcall %}
+                    </button>
                 </div>
                 {% call card_description() %}
                     Domains currently being monitored for DMARC compliance
@@ -91,6 +91,72 @@
             {% endcall %}
         {% endcall %}
     </div>
+
+    <div
+        x-show="showAddDomainModal"
+        x-cloak
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+        @keydown.escape.window="closeAddDomainModal()"
+    >
+        <div class="w-full max-w-md rounded-lg bg-base-100 p-6 shadow-xl" @click.outside="closeAddDomainModal()">
+            <div class="mb-4 flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold">Add Domain</h2>
+                    <p class="text-sm text-muted-foreground">Start monitoring a domain before reports arrive.</p>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm" @click="closeAddDomainModal()" aria-label="Close">
+                    X
+                </button>
+            </div>
+
+            <template x-if="addDomainError">
+                <div class="alert alert-error mb-4">
+                    <span x-text="addDomainError"></span>
+                </div>
+            </template>
+
+            <form class="space-y-4" @submit.prevent="addDomain()">
+                <div class="form-control w-full">
+                    <label class="label" for="domain-name">
+                        <span class="label-text font-medium">Domain Name</span>
+                    </label>
+                    <input
+                        id="domain-name"
+                        type="text"
+                        x-model="addDomainForm.name"
+                        class="input input-bordered w-full"
+                        placeholder="example.com"
+                        autocomplete="off"
+                        required
+                    />
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label" for="domain-description">
+                        <span class="label-text font-medium">Description</span>
+                        <span class="label-text-alt">Optional</span>
+                    </label>
+                    <textarea
+                        id="domain-description"
+                        x-model="addDomainForm.description"
+                        class="textarea textarea-bordered w-full"
+                        rows="3"
+                        maxlength="500"
+                    ></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="btn btn-outline btn-sm" @click="closeAddDomainModal()" :disabled="isAddingDomain">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-sm" :disabled="isAddingDomain">
+                        <template x-if="isAddingDomain"><span class="loading loading-spinner loading-xs mr-2"></span></template>
+                        Add Domain
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -99,6 +165,13 @@
 function domainsApp() {
     return {
         domains: [],
+        showAddDomainModal: false,
+        isAddingDomain: false,
+        addDomainError: '',
+        addDomainForm: {
+            name: '',
+            description: ''
+        },
 
         init() {
             // Fetch domains from server
@@ -127,6 +200,60 @@ function domainsApp() {
                 }
             } catch (error) {
                 console.error('Error fetching domains:', error);
+            }
+        },
+
+        openAddDomainModal() {
+            this.addDomainError = '';
+            this.addDomainForm = { name: '', description: '' };
+            this.showAddDomainModal = true;
+            this.$nextTick(() => document.getElementById('domain-name')?.focus());
+        },
+
+        closeAddDomainModal() {
+            if (this.isAddingDomain) return;
+            this.showAddDomainModal = false;
+            this.addDomainError = '';
+        },
+
+        formatError(detail) {
+            if (typeof detail === 'string') return detail;
+            if (detail && typeof detail === 'object') {
+                if (detail.name) return detail.name;
+                return Object.values(detail).flat().join(' ');
+            }
+            return 'Unable to add domain.';
+        },
+
+        async addDomain() {
+            this.isAddingDomain = true;
+            this.addDomainError = '';
+
+            try {
+                const response = await fetch('/api/v1/domains', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: this.addDomainForm.name,
+                        description: this.addDomainForm.description || null
+                    })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    this.addDomainError = this.formatError(data.detail);
+                    return;
+                }
+
+                this.showAddDomainModal = false;
+                await this.fetchDomains();
+            } catch (error) {
+                console.error('Error adding domain:', error);
+                this.addDomainError = 'Unable to add domain.';
+            } finally {
+                this.isAddingDomain = false;
             }
         }
     }
