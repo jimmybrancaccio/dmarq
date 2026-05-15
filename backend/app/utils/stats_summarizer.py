@@ -144,7 +144,12 @@ class StatsSummarizer:
         candidate_abs = os.path.abspath(candidate)
 
         # Enforce that cache files always remain under the cache directory
-        if not candidate_abs.startswith(cache_dir_abs + os.sep):
+        try:
+            is_within_cache_dir = os.path.commonpath([cache_dir_abs, candidate_abs]) == cache_dir_abs
+        except ValueError:
+            is_within_cache_dir = False
+
+        if not is_within_cache_dir:
             logger.warning(
                 "Unsafe cache filename derived from domain_id: %s; using fallback",
                 domain_id,
