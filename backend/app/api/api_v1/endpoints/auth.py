@@ -15,8 +15,8 @@ GET  /account-portal   – Redirect to the Logto Account Center root.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import logging
-import re
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -43,6 +43,8 @@ settings = get_settings()
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 _SAFE_NEXT_PREFIXES = ("/",)  # only allow relative redirects after login
+_LOGTO_NEXT_COOKIE_MAX_AGE = 600
+_LOGTO_NEXT_TOKEN_TYPE = "logto_next"
 
 
 def _safe_next(next_url: Optional[str]) -> str:
@@ -50,6 +52,16 @@ def _safe_next(next_url: Optional[str]) -> str:
     if next_url and next_url.startswith("/") and not next_url.startswith("//"):
         return next_url
     return "/"
+
+
+def _create_logto_next_token(next_path: str) -> str:
+    """Create a short-lived signed token used only for post-login redirect state."""
+    payload = {
+        "type": _LOGTO_NEXT_TOKEN_TYPE,
+        "next": next_path,
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=_LOGTO_NEXT_COOKIE_MAX_AGE),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def _safe_next_from_cookie(next_cookie: Optional[str]) -> str:
@@ -64,12 +76,8 @@ def _safe_next_from_cookie(next_cookie: Optional[str]) -> str:
             algorithms=[settings.ALGORITHM],
             options={"verify_exp": True},
         )
-        if payload.get("type") == "dmarq_session":
-            parsed_sub = payload.get("sub", "")
-            if isinstance(parsed_sub, str):
-                match = re.fullmatch(r"""\{\s*['"]next['"]\s*:\s*['"]([^'"]*)['"]\s*\}""", parsed_sub)
-                if match:
-                    return _safe_next(match.group(1))
+        if payload.get("type") == _LOGTO_NEXT_TOKEN_TYPE:
+            return _safe_next(payload.get("next"))
     except JWTError:
         logger.debug("Failed to decode signed logto_next cookie; falling back to legacy plain-path handling.")
 
@@ -128,10 +136,10 @@ async def sign_in(
     if safe != "/":
         response.set_cookie(
             key="logto_next",
-            value=create_session_token({"next": safe}),
+            value=_create_logto_next_token(safe),
             httponly=True,
             samesite="lax",
-            max_age=600,  # 10 minutes – must survive the Logto redirect round-trip
+            max_age=_LOGTO_NEXT_COOKIE_MAX_AGE,  # must survive the Logto redirect round-trip
         )
 
     return response
