@@ -131,11 +131,17 @@ class StatsSummarizer:
         """
         Build a cache path and ensure it is contained within cache_dir.
         """
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+", filename):
+            raise ValueError("Invalid cache filename")
+
         base_dir = os.path.realpath(self.cache_dir)
         candidate = os.path.realpath(os.path.join(base_dir, filename))
 
-        if os.path.commonpath([base_dir, candidate]) != base_dir:
-            raise ValueError("Cache path escapes cache directory")
+        try:
+            if os.path.commonpath([base_dir, candidate]) != base_dir:
+                raise ValueError("Cache path escapes cache directory")
+        except ValueError as e:
+            raise ValueError("Cache path validation failed") from e
 
         return candidate
 
@@ -153,7 +159,7 @@ class StatsSummarizer:
             return self._build_safe_cache_path("global_summary.json")
 
         safe_domain = re.sub(r"[^A-Za-z0-9_-]", "_", domain_id)
-        if not safe_domain:
+        if not safe_domain or not re.search(r"[A-Za-z0-9]", safe_domain):
             raise ValueError("Empty/invalid domain identifier")
 
         return self._build_safe_cache_path(f"domain_{safe_domain}.json")
