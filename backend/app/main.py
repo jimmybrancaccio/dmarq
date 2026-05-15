@@ -24,8 +24,6 @@ from app.services.gmail_client import GmailClient
 from app.services.imap_client import IMAPClient
 from app.services.report_store import ReportStore
 
-User = app.models.user.User  # keep direct User references without mixed import styles
-
 # Set up logging
 logger = logging.getLogger(__name__)
 
