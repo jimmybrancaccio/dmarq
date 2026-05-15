@@ -7,8 +7,8 @@ Covers API key management, domain validation, file upload limits, and XML parsin
 import pytest
 from fastapi.testclient import TestClient
 
+import app.core.security as sec_module
 import app.services.dmarc_parser as parser_module
-from app.core.security import add_api_key, generate_api_key, verify_api_key
 from app.main import create_app
 from app.utils.domain_validator import validate_domain, validate_domain_config
 
@@ -18,8 +18,8 @@ class TestAPIKeySecurity:
 
     def test_generate_api_key_length_and_uniqueness(self):
         """Generated keys should be 64 hex characters and unique."""
-        key1 = generate_api_key()
-        key2 = generate_api_key()
+        key1 = sec_module.generate_api_key()
+        key2 = sec_module.generate_api_key()
 
         assert len(key1) == 64
         assert len(key2) == 64
@@ -28,14 +28,14 @@ class TestAPIKeySecurity:
 
     def test_add_and_verify_api_key(self):
         """Keys should only be valid after being added."""
-        key = generate_api_key()
-        assert not verify_api_key(key)
+        key = sec_module.generate_api_key()
+        assert not sec_module.verify_api_key(key)
 
-        assert add_api_key(key) is True
-        assert verify_api_key(key) is True
+        assert sec_module.add_api_key(key) is True
+        assert sec_module.verify_api_key(key) is True
 
         # Adding the same key again returns False
-        assert add_api_key(key) is False
+        assert sec_module.add_api_key(key) is False
 
 
 class TestDomainValidation:
@@ -159,7 +159,6 @@ class TestAdminApiKeyStartup:
 
     def test_startup_uses_env_api_key(self, monkeypatch):
         """When ADMIN_API_KEY is configured, startup should register it directly."""
-        import app.core.security as sec_module
         import app.main as main_module
 
         test_key = "a" * 64
@@ -177,7 +176,6 @@ class TestAdminApiKeyStartup:
 
     def test_startup_generates_key_when_no_env(self, monkeypatch):
         """When ADMIN_API_KEY is not set, startup should generate a random key."""
-        import app.core.security as sec_module
         import app.main as main_module
 
         monkeypatch.setattr(main_module.settings, "ADMIN_API_KEY", None)
