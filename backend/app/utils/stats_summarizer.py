@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -120,6 +121,14 @@ class StatsSummarizer:
             if os.path.exists(cache_file):
                 os.remove(cache_file)
 
+    def _sanitize_domain_for_filename(self, domain_id: str) -> str:
+        """
+        Convert domain identifier into a filesystem-safe token.
+        """
+        safe_domain = re.sub(r"[^A-Za-z0-9_-]", "_", domain_id)
+        safe_domain = safe_domain.strip("_")
+        return safe_domain or "unknown"
+
     def _get_cache_filename(self, domain_id: Optional[str] = None) -> str:
         """
         Get the filename for a cache file
@@ -131,10 +140,17 @@ class StatsSummarizer:
             Path to the cache file
         """
         if domain_id is None:
-            return os.path.join(self.cache_dir, "global_summary.json")
-        # Sanitize domain_id to use as filename
-        safe_domain = domain_id.replace(".", "_").replace("/", "_")
-        return os.path.join(self.cache_dir, f"domain_{safe_domain}.json")
+            candidate = os.path.join(self.cache_dir, "global_summary.json")
+        else:
+            safe_domain = self._sanitize_domain_for_filename(domain_id)
+            candidate = os.path.join(self.cache_dir, f"domain_{safe_domain}.json")
+
+        cache_dir_real = os.path.realpath(self.cache_dir)
+        candidate_real = os.path.realpath(candidate)
+        if os.path.commonpath([cache_dir_real, candidate_real]) != cache_dir_real:
+            raise ValueError("Invalid cache file path")
+
+        return candidate_real
 
     def calculate_summary_statistics(
         self, db: Session, domain_id: Optional[str] = None
