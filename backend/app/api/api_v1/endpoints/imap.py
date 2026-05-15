@@ -87,7 +87,7 @@ async def fetch_imap_reports(
         if not results.get("success"):
             raise HTTPException(
                 status_code=500,
-                detail=results.get("error", "Failed to fetch reports. Check server logs for details."),
+                detail="Failed to fetch reports. Check server logs for details.",
             )
 
         return {
