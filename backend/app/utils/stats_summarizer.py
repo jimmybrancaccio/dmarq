@@ -138,9 +138,13 @@ class StatsSummarizer:
         if not normalized_domain:
             raise ValueError("Invalid domain_id: empty value")
 
-        if not re.fullmatch(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*", normalized_domain):
+        if not re.fullmatch(
+            r"[A-Za-z0-9_][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_][A-Za-z0-9_-]*)*",
+            normalized_domain,
+        ):
             raise ValueError("Invalid domain_id: contains unsafe characters")
 
+        # Convert separators to keep cache filenames filesystem-friendly.
         return normalized_domain.replace(".", "_")
 
     def _get_cache_filename(self, domain_id: Optional[str] = None) -> str:
@@ -162,7 +166,16 @@ class StatsSummarizer:
             cache_file = os.path.join(cache_root, f"domain_{safe_domain}.json")
 
         resolved_cache_file = os.path.realpath(cache_file)
-        if os.path.commonpath([cache_root, resolved_cache_file]) != cache_root:
+        try:
+            relative_cache_path = os.path.relpath(resolved_cache_file, cache_root)
+        except ValueError as exc:
+            raise ValueError("Cache path cannot be resolved relative to cache directory") from exc
+
+        if (
+            relative_cache_path == os.curdir
+            or relative_cache_path == os.pardir
+            or relative_cache_path.startswith(f"{os.pardir}{os.sep}")
+        ):
             raise ValueError("Resolved cache path is outside cache directory")
 
         return resolved_cache_file
