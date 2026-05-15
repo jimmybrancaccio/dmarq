@@ -121,9 +121,15 @@ class StatsSummarizer:
                     os.remove(cache_file)
             else:
                 # Invalidate specific domain cache
-                cache_file = self._get_cache_filename(domain_id)
-                if os.path.exists(cache_file):
-                    os.remove(cache_file)
+                cache_filename = os.path.basename(self._get_cache_filename(domain_id))
+                for filename in os.listdir(self.cache_dir):
+                    if filename != cache_filename:
+                        continue
+
+                    cache_file = self._build_safe_cache_path(filename)
+                    if os.path.exists(cache_file):
+                        os.remove(cache_file)
+                    break
         except ValueError as e:
             logger.warning("Skipping cache invalidation for invalid domain_id=%s: %s", domain_id, str(e))
 
@@ -131,9 +137,13 @@ class StatsSummarizer:
         """
         Build a cache path and ensure it is contained within cache_dir.
         """
-        is_valid_filename = filename == "global_summary.json" or re.fullmatch(
-            r"domain_[A-Za-z0-9_-]+\.json", filename
+        is_domain_cache_file = (
+            filename.startswith("domain_")
+            and filename.endswith(".json")
+            and len(filename) > len("domain_.json")
+            and all(ch.isalnum() or ch in "_-" for ch in filename[len("domain_") : -len(".json")])
         )
+        is_valid_filename = filename == "global_summary.json" or is_domain_cache_file
         if not is_valid_filename:
             raise ValueError("Invalid cache filename")
 
