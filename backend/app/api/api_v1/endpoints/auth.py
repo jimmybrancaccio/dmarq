@@ -16,10 +16,12 @@ GET  /account-portal   – Redirect to the Logto Account Center root.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -48,6 +50,31 @@ def _safe_next(next_url: Optional[str]) -> str:
     if next_url and next_url.startswith("/") and not next_url.startswith("//"):
         return next_url
     return "/"
+
+
+def _safe_next_from_cookie(next_cookie: Optional[str]) -> str:
+    """Return a safe redirect path from the signed logto_next cookie when possible."""
+    if not next_cookie:
+        return "/"
+
+    try:
+        payload = jwt.decode(
+            next_cookie,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            options={"verify_exp": True},
+        )
+        if payload.get("type") == "dmarq_session":
+            parsed_sub = payload.get("sub", "")
+            if isinstance(parsed_sub, str):
+                match = re.fullmatch(r"""\{\s*['"]next['"]\s*:\s*['"]([^'"]*)['"]\s*\}""", parsed_sub)
+                if match:
+                    return _safe_next(match.group(1))
+    except JWTError:
+        pass
+
+    # Backward compatibility with legacy plain-path cookies.
+    return _safe_next(next_cookie)
 
 
 def _logto_not_configured() -> HTTPException:
@@ -143,7 +170,7 @@ async def callback(
     user = sync_logto_user(claims, db)
 
     # Where to go after login
-    next_url = _safe_next(request.cookies.get("logto_next"))
+    next_url = _safe_next_from_cookie(request.cookies.get("logto_next"))
 
     response = RedirectResponse(url=next_url, status_code=302)
 
