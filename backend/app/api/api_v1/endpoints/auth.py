@@ -71,7 +71,7 @@ def _safe_next_from_cookie(next_cookie: Optional[str]) -> str:
                 if match:
                     return _safe_next(match.group(1))
     except JWTError:
-        pass
+        logger.debug("Failed to decode signed logto_next cookie; falling back to legacy plain-path handling.")
 
     # Backward compatibility with legacy plain-path cookies.
     return _safe_next(next_cookie)
