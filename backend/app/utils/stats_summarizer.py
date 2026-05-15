@@ -144,8 +144,8 @@ class StatsSummarizer:
         candidate_path = os.path.abspath(os.path.join(base_dir, filename))
 
         # Ensure the resolved path stays within the cache directory.
-        norm_base_dir = os.path.normcase(base_dir)
-        norm_candidate_path = os.path.normcase(candidate_path)
+        norm_base_dir = os.path.normcase(os.path.realpath(base_dir))
+        norm_candidate_path = os.path.normcase(os.path.realpath(candidate_path))
         try:
             is_within_cache_dir = (
                 os.path.commonpath([norm_base_dir, norm_candidate_path]) == norm_base_dir
