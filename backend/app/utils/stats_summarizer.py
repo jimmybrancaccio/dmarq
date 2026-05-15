@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -132,9 +133,9 @@ class StatsSummarizer:
         """
         if domain_id is None:
             return os.path.join(self.cache_dir, "global_summary.json")
-        # Sanitize domain_id to use as filename
-        safe_domain = domain_id.replace(".", "_").replace("/", "_")
-        return os.path.join(self.cache_dir, f"domain_{safe_domain}.json")
+        # Use a deterministic hash so user-controlled input cannot influence path structure
+        domain_key = hashlib.sha256(domain_id.encode("utf-8")).hexdigest()
+        return os.path.join(self.cache_dir, f"domain_{domain_key}.json")
 
     def calculate_summary_statistics(
         self, db: Session, domain_id: Optional[str] = None
