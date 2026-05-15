@@ -43,7 +43,6 @@ class RoadmapParser:
         section_pattern = r'####\s+(\d+)\.\s+(.+?)\((.+?)\)\s*\n(.*?)(?=####|\n##|\Z)'
         
         for match in re.finditer(section_pattern, self.content, re.DOTALL):
-            section_num = match.group(1)
             title = match.group(2).strip()
             priority = match.group(3).strip()
             content = match.group(4).strip()
