@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -86,9 +87,9 @@ class StatsSummarizer:
         Returns:
             True if save was successful, False otherwise
         """
-        cache_file = self._get_cache_filename(domain_id)
-
         try:
+            cache_file = self._get_cache_filename(domain_id)
+
             # Add timestamp
             stats["cached_at"] = datetime.now().isoformat()
 
@@ -97,8 +98,11 @@ class StatsSummarizer:
                 json.dump(stats, f)
 
             return True
+        except ValueError as e:
+            logger.error("Invalid cache filename for domain_id=%s: %s", domain_id, str(e))
+            return False
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Error writing cache file %s: %s", cache_file, str(e))
+            logger.error("Error writing cache file for domain_id=%s: %s", domain_id, str(e))
             return False
 
     def invalidate_cache(self, domain_id: Optional[str] = None) -> None:
@@ -109,16 +113,31 @@ class StatsSummarizer:
             domain_id: Optional domain ID to invalidate specific domain cache
                        If None, invalidates global summary cache
         """
-        if domain_id is None:
-            # Invalidate all caches
-            cache_file = self._get_cache_filename()
-            if os.path.exists(cache_file):
-                os.remove(cache_file)
-        else:
-            # Invalidate specific domain cache
-            cache_file = self._get_cache_filename(domain_id)
-            if os.path.exists(cache_file):
-                os.remove(cache_file)
+        try:
+            if domain_id is None:
+                # Invalidate all caches
+                cache_file = self._get_cache_filename()
+                if os.path.exists(cache_file):
+                    os.remove(cache_file)
+            else:
+                # Invalidate specific domain cache
+                cache_file = self._get_cache_filename(domain_id)
+                if os.path.exists(cache_file):
+                    os.remove(cache_file)
+        except ValueError as e:
+            logger.warning("Skipping cache invalidation for invalid domain_id=%s: %s", domain_id, str(e))
+
+    def _build_safe_cache_path(self, filename: str) -> str:
+        """
+        Build a cache path and ensure it is contained within cache_dir.
+        """
+        base_dir = os.path.realpath(self.cache_dir)
+        candidate = os.path.realpath(os.path.join(base_dir, filename))
+
+        if os.path.commonpath([base_dir, candidate]) != base_dir:
+            raise ValueError("Cache path escapes cache directory")
+
+        return candidate
 
     def _get_cache_filename(self, domain_id: Optional[str] = None) -> str:
         """
@@ -131,10 +150,13 @@ class StatsSummarizer:
             Path to the cache file
         """
         if domain_id is None:
-            return os.path.join(self.cache_dir, "global_summary.json")
-        # Sanitize domain_id to use as filename
-        safe_domain = domain_id.replace(".", "_").replace("/", "_")
-        return os.path.join(self.cache_dir, f"domain_{safe_domain}.json")
+            return self._build_safe_cache_path("global_summary.json")
+
+        safe_domain = re.sub(r"[^A-Za-z0-9_-]", "_", domain_id)
+        if not safe_domain:
+            raise ValueError("Empty/invalid domain identifier")
+
+        return self._build_safe_cache_path(f"domain_{safe_domain}.json")
 
     def calculate_summary_statistics(
         self, db: Session, domain_id: Optional[str] = None
