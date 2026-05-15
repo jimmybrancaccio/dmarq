@@ -131,7 +131,10 @@ class StatsSummarizer:
         """
         Build a cache path and ensure it is contained within cache_dir.
         """
-        if not re.fullmatch(r"[A-Za-z0-9_.-]+", filename):
+        is_valid_filename = filename == "global_summary.json" or re.fullmatch(
+            r"domain_[A-Za-z0-9_-]+\.json", filename
+        )
+        if not is_valid_filename:
             raise ValueError("Invalid cache filename")
 
         base_dir = os.path.realpath(self.cache_dir)
@@ -158,10 +161,10 @@ class StatsSummarizer:
         if domain_id is None:
             return self._build_safe_cache_path("global_summary.json")
 
-        safe_domain = re.sub(r"[^A-Za-z0-9_-]", "_", domain_id)
-        if not safe_domain or not re.search(r"[A-Za-z0-9]", safe_domain):
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", domain_id):
             raise ValueError("Empty/invalid domain identifier")
 
+        safe_domain = domain_id.replace(".", "_")
         return self._build_safe_cache_path(f"domain_{safe_domain}.json")
 
     def calculate_summary_statistics(
