@@ -144,8 +144,10 @@ class StatsSummarizer:
         candidate_path = os.path.abspath(os.path.join(base_dir, filename))
 
         # Ensure the resolved path stays within the cache directory.
-        if not candidate_path.startswith(base_dir + os.sep):
-            logger.warning("Unsafe cache path derived from domain_id; using fallback filename")
+        if os.path.commonpath([base_dir, candidate_path]) != base_dir:
+            logger.warning(
+                "Unsafe cache path derived from domain_id=%r; using fallback filename", domain_id
+            )
             return os.path.join(base_dir, "domain_unknown.json")
 
         return candidate_path
