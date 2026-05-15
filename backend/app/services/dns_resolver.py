@@ -233,8 +233,12 @@ class SystemDNSProvider(BaseDNSProvider):
             if answers:
                 for rdata in answers:
                     return str(rdata).rstrip(".")
-        except (dns.exception.DNSException, ValueError):
-            pass
+        except (dns.exception.DNSException, ValueError) as exc:
+            logger.debug(
+                "PTR lookup failed for ip=%s: %s",
+                _sanitize_for_log(ip),
+                exc,
+            )
         return None
 
 
