@@ -101,7 +101,7 @@ async def sign_in(
     if safe != "/":
         response.set_cookie(
             key="logto_next",
-            value=safe,
+            value=create_session_token({"next": safe}),
             httponly=True,
             samesite="lax",
             max_age=600,  # 10 minutes – must survive the Logto redirect round-trip
