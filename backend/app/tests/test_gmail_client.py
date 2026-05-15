@@ -538,6 +538,7 @@ class TestFetchReports:
             result = client.fetch_reports()
 
         assert result["success"] is False
+        assert result.get("error") == "Failed to list Gmail messages."
 
     def test_returns_success_with_no_messages(self):
         client = _make_client()
