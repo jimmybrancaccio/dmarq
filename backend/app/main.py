@@ -352,7 +352,7 @@ def create_app() -> FastAPI:
             try:
                 await background_task
             except asyncio.CancelledError:
-                pass
+                logger.debug("IMAP polling background task cancelled during shutdown")
 
     return application
 
