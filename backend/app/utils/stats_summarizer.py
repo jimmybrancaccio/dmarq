@@ -20,6 +20,15 @@ class StatsSummarizer:
     to improve performance with large datasets.
     """
 
+    @staticmethod
+    def _sanitize_for_log(value: Any) -> str:
+        """
+        Sanitize values before logging to prevent log injection.
+        Removes CR/LF and other non-printable control characters.
+        """
+        text = str(value)
+        return "".join(ch for ch in text if ch.isprintable() and ch not in "\r\n")
+
     def __init__(self, cache_dir: str = None):
         """
         Initialize the stats summarizer with optional cache directory
@@ -72,7 +81,11 @@ class StatsSummarizer:
             with open(cache_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Error reading cache file %s: %s", cache_file, str(e))
+            logger.warning(
+                "Error reading cache file %s: %s",
+                self._sanitize_for_log(cache_file),
+                self._sanitize_for_log(e),
+            )
             return None
 
     def save_summary(self, stats: Dict[str, Any], domain_id: Optional[str] = None) -> bool:
@@ -98,7 +111,11 @@ class StatsSummarizer:
 
             return True
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Error writing cache file %s: %s", cache_file, str(e))
+            logger.error(
+                "Error writing cache file %s: %s",
+                self._sanitize_for_log(cache_file),
+                self._sanitize_for_log(e),
+            )
             return False
 
     def invalidate_cache(self, domain_id: Optional[str] = None) -> None:
