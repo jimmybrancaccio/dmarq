@@ -28,14 +28,12 @@ def db_session():
     underlying DBAPI connection so the in-memory database (and its tables)
     persist for the full duration of the test, even across commits.
     """
-    model_tables = (
-        domain.Domain.__table__,
-        domain.UserDomain.__table__,
-        mail_source.MailSource.__table__,
-        report.DMARCReport.__table__,
-        report.ReportRecord.__table__,
-        setting.Setting.__table__,
-        user.User.__table__,
+    model_tables = tuple(
+        model_class.__table__
+        for model_module in (domain, mail_source, report, setting, user)
+        for model_class in vars(model_module).values()
+        if getattr(model_class, "__module__", None) == model_module.__name__
+        and hasattr(model_class, "__table__")
     )
     engine = create_engine(
         "sqlite://",
