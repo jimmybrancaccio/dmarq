@@ -18,6 +18,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, Optional
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
@@ -45,12 +46,21 @@ settings = get_settings()
 _SAFE_NEXT_PREFIXES = ("/",)  # only allow relative redirects after login
 _LOGTO_NEXT_COOKIE_MAX_AGE = 600
 _LOGTO_NEXT_TOKEN_TYPE = "logto_next"
-
-
 def _safe_next(next_url: Optional[str]) -> str:
-    """Validate and return a safe post-login redirect path."""
-    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
-        return next_url
+    """Validate and return a safe post-login redirect path.
+
+    Accepts only relative paths that start with a single '/' (no scheme,
+    no netloc, no protocol-relative '//') to prevent open-redirect attacks.
+    """
+    if next_url:
+        parts = urlsplit(next_url)
+        if (
+            not parts.scheme
+            and not parts.netloc
+            and parts.path.startswith("/")
+            and not parts.path.startswith("//")
+        ):
+            return next_url
     return "/"
 
 
