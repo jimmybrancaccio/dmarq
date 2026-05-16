@@ -6,15 +6,23 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-import app.models.domain as _domain_model  # noqa: F401  # pylint: disable=unused-import
-import app.models.mail_source as _mail_source_model  # noqa: F401  # pylint: disable=unused-import
-import app.models.report  # noqa: F401  # pylint: disable=unused-import
-import app.models.setting  # noqa: F401  # pylint: disable=unused-import
-import app.models.user  # noqa: F401  # pylint: disable=unused-import
+import app.models.domain as _domain_model
+import app.models.mail_source as _mail_source_model
+import app.models.report as _report_model
+import app.models.setting as _setting_model
+import app.models.user as _user_model
 from app.core.database import Base, get_db
 from app.core.security import require_admin_auth
 from app.main import create_app
 from app.services.report_store import ReportStore
+
+_IMPORTED_MODEL_MODULES = (
+    _domain_model,
+    _mail_source_model,
+    _report_model,
+    _setting_model,
+    _user_model,
+)
 
 
 @pytest.fixture()
