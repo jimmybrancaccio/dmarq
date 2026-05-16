@@ -1,6 +1,6 @@
 # Import all models so Base.metadata knows every table
 from importlib import import_module
-from inspect import isclass
+from inspect import getmembers, isclass
 from pkgutil import iter_modules
 
 import pytest
@@ -15,6 +15,19 @@ from app.core.database import Base, get_db
 from app.core.security import require_admin_auth
 from app.main import create_app
 from app.services.report_store import ReportStore
+
+
+def _get_model_tables():
+    """Return SQLAlchemy tables for all ORM models in the app.models package."""
+    model_tables = []
+    for module_info in iter_modules(models.__path__):
+        model_module = import_module(f"{models.__name__}.{module_info.name}")
+        for _, model_class in getmembers(model_module, isclass):
+            if issubclass(model_class, Base) and model_class is not Base and hasattr(
+                model_class, "__table__"
+            ):
+                model_tables.append(model_class.__table__)
+    return tuple(model_tables)
 
 
 @pytest.fixture()
@@ -32,16 +45,7 @@ def db_session():
     underlying DBAPI connection so the in-memory database (and its tables)
     persist for the full duration of the test, even across commits.
     """
-    model_tables = tuple(
-        model_class.__table__
-        for module_info in iter_modules(models.__path__)
-        for model_module in (import_module(f"{models.__name__}.{module_info.name}"),)
-        for model_class in vars(model_module).values()
-        if isclass(model_class)
-        and issubclass(model_class, Base)
-        and model_class is not Base
-        and hasattr(model_class, "__table__")
-    )
+    model_tables = _get_model_tables()
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
