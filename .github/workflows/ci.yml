@@ -8,6 +8,7 @@ on:
   schedule:
     # Weekly security scan on Mondays at 00:00 UTC
     - cron: '0 0 * * 1'
+  workflow_dispatch:
 
 jobs:
   # ── Stage 1: Lint (gates everything else) ────────────────────────────────
