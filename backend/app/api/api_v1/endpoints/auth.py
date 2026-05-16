@@ -53,14 +53,21 @@ def _safe_next(next_url: Optional[str]) -> str:
     no netloc, no protocol-relative '//') to prevent open-redirect attacks.
     """
     if next_url:
-        parts = urlsplit(next_url)
+        normalized = next_url.replace("\\", "/")
+        parts = urlsplit(normalized)
         if (
             not parts.scheme
             and not parts.netloc
             and parts.path.startswith(_SAFE_NEXT_PREFIXES)
+            and not normalized.startswith("//")
             and not parts.path.startswith("//")
         ):
-            return next_url
+            safe = parts.path
+            if parts.query:
+                safe = f"{safe}?{parts.query}"
+            if parts.fragment:
+                safe = f"{safe}#{parts.fragment}"
+            return safe
     return "/"
 
 
