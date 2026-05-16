@@ -15,11 +15,14 @@ GET  /account-portal   – Redirect to the Logto Account Center root.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, Optional
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -41,13 +44,55 @@ settings = get_settings()
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 _SAFE_NEXT_PREFIXES = ("/",)  # only allow relative redirects after login
-
-
+_LOGTO_NEXT_COOKIE_MAX_AGE = 600
+_LOGTO_NEXT_TOKEN_TYPE = "logto_next"
 def _safe_next(next_url: Optional[str]) -> str:
-    """Validate and return a safe post-login redirect path."""
-    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
-        return next_url
+    """Validate and return a safe post-login redirect path.
+
+    Accepts only relative paths that start with a single '/' (no scheme,
+    no netloc, no protocol-relative '//') to prevent open-redirect attacks.
+    """
+    if next_url:
+        parts = urlsplit(next_url)
+        if (
+            not parts.scheme
+            and not parts.netloc
+            and parts.path.startswith(_SAFE_NEXT_PREFIXES)
+            and not parts.path.startswith("//")
+        ):
+            return next_url
     return "/"
+
+
+def _create_logto_next_token(next_path: str) -> str:
+    """Create a short-lived signed token used only for post-login redirect state."""
+    payload = {
+        "type": _LOGTO_NEXT_TOKEN_TYPE,
+        "next": next_path,
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=_LOGTO_NEXT_COOKIE_MAX_AGE),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def _safe_next_from_cookie(next_cookie: Optional[str]) -> str:
+    """Return a safe redirect path from the signed logto_next cookie when possible."""
+    if not next_cookie:
+        return "/"
+
+    try:
+        payload = jwt.decode(
+            next_cookie,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            options={"verify_exp": True},
+        )
+        if payload.get("type") == _LOGTO_NEXT_TOKEN_TYPE:
+            return _safe_next(payload.get("next"))
+    except JWTError:
+        logger.debug("Failed to decode signed logto_next cookie; falling back to legacy plain-path handling.")
+
+    # Backward compatibility with legacy plain-path cookies.
+    return _safe_next(next_cookie)
 
 
 def _logto_not_configured() -> HTTPException:
@@ -101,10 +146,10 @@ async def sign_in(
     if safe != "/":
         response.set_cookie(
             key="logto_next",
-            value=safe,
+            value=_create_logto_next_token(safe),
             httponly=True,
             samesite="lax",
-            max_age=600,  # 10 minutes – must survive the Logto redirect round-trip
+            max_age=_LOGTO_NEXT_COOKIE_MAX_AGE,  # must survive the Logto redirect round-trip
         )
 
     return response
@@ -143,7 +188,7 @@ async def callback(
     user = sync_logto_user(claims, db)
 
     # Where to go after login
-    next_url = _safe_next(request.cookies.get("logto_next"))
+    next_url = _safe_next_from_cookie(request.cookies.get("logto_next"))
 
     response = RedirectResponse(url=next_url, status_code=302)
 

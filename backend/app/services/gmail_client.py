@@ -215,13 +215,21 @@ class GmailClient:
             service = self._build_service()
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Gmail API: failed to build service: %s", exc)
-            return {**stats, "success": False, "error": str(exc)}
+            return {
+                **stats,
+                "success": False,
+                "error": "Failed to connect to Gmail service.",
+            }
 
         try:
             message_ids = self._list_dmarc_message_ids(service)
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Gmail API: failed to list messages: %s", exc)
-            return {**stats, "success": False, "error": str(exc)}
+            return {
+                **stats,
+                "success": False,
+                "error": "Failed to list Gmail messages.",
+            }
 
         domains_before = set(self.report_store.get_domains())
 

@@ -1,7 +1,9 @@
 """Tests for the StatsSummarizer with real database queries."""
 
+import hashlib
 import shutil
 import tempfile
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
@@ -185,3 +187,14 @@ class TestStatsSummarizerCaching:
         # Should recalculate after invalidation
         stats = summarizer.calculate_summary_statistics(db_session)
         assert stats["total_domains"] == 1
+
+    def test_domain_cache_filename_uses_hash_and_stays_in_cache_dir(self, db_session, summarizer):
+        path_shaping_input = "../x"
+        expected_hash = hashlib.sha256(path_shaping_input.encode("utf-8")).hexdigest()
+
+        summarizer.calculate_summary_statistics(db_session, domain_id=path_shaping_input)
+
+        expected_cache_path = (Path(summarizer.cache_dir) / f"domain_{expected_hash}.json").resolve()
+        assert expected_cache_path.exists()
+        cache_dir_path = Path(summarizer.cache_dir).resolve()
+        assert expected_cache_path.parent == cache_dir_path
