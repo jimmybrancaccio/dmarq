@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -29,6 +28,7 @@ class DomainBase(BaseModel):
 
     name: str
     description: Optional[str] = None
+    policy: Optional[str] = None
 
 
 class DomainCreate(DomainBase):
@@ -40,7 +40,6 @@ class DomainCreate(DomainBase):
 class DomainResponse(DomainBase):
     """Domain response schema"""
 
-    policy: Optional[str] = None
     reports_count: int = 0
     emails_count: int = 0
     compliance_rate: float = 0.0
@@ -176,13 +175,6 @@ async def create_domain(domain_data: DomainCreate, db: Session = Depends(get_db)
             detail=validation["errors"],
         )
 
-    domain_db = db.query(Domain).filter(Domain.name == domain_name).first()
-    if domain_db:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Domain already exists",
-        )
-
     store = ReportStore.get_instance()
     if domain_name in store.get_domains():
         raise HTTPException(
@@ -190,23 +182,21 @@ async def create_domain(domain_data: DomainCreate, db: Session = Depends(get_db)
             detail="Domain already exists",
         )
 
-    try:
+    domain_db = db.query(Domain).filter(Domain.name == domain_name).first()
+    if not domain_db:
         domain_db = Domain(name=domain_name, description=description)
         db.add(domain_db)
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Domain already exists",
-        ) from exc
+    else:
+        domain_db.description = description
+        domain_db.active = True
+    db.commit()
 
     store.add_domain(domain_name)
 
     return DomainResponse(
         name=domain_name,
         description=description,
-        policy=None,
+        policy=domain_data.policy,
         reports_count=0,
         emails_count=0,
         compliance_rate=0.0,
