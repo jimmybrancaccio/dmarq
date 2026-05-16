@@ -1,4 +1,8 @@
 # Import all models so Base.metadata knows every table
+from importlib import import_module
+from inspect import getmembers, isclass
+from pkgutil import iter_modules
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -6,15 +10,27 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-import app.models.domain  # noqa: F401  # pylint: disable=unused-import
-import app.models.mail_source as _mail_source_model  # noqa: F401  # pylint: disable=unused-import
-import app.models.report  # noqa: F401  # pylint: disable=unused-import
-import app.models.setting  # noqa: F401  # pylint: disable=unused-import
-import app.models.user  # noqa: F401  # pylint: disable=unused-import
+from app import models
 from app.core.database import Base, get_db
 from app.core.security import require_admin_auth
 from app.main import create_app
 from app.services.report_store import ReportStore
+
+
+def _get_model_tables():
+    """Return SQLAlchemy tables for all ORM models in the app.models package."""
+    model_tables = []
+    for module_info in iter_modules(models.__path__):
+        model_module = import_module(f"{models.__name__}.{module_info.name}")
+        for _, model_class in getmembers(model_module, isclass):
+            if (
+                model_class.__module__.startswith(f"{models.__name__}.")
+                and issubclass(model_class, Base)
+                and model_class is not Base
+                and hasattr(model_class, "__table__")
+            ):
+                model_tables.append(model_class.__table__)
+    return tuple(model_tables)
 
 
 @pytest.fixture()
@@ -32,19 +48,20 @@ def db_session():
     underlying DBAPI connection so the in-memory database (and its tables)
     persist for the full duration of the test, even across commits.
     """
+    model_tables = _get_model_tables()
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine)
+    Base.metadata.create_all(engine, tables=model_tables)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(engine)
+        Base.metadata.drop_all(engine, tables=model_tables)
         engine.dispose()
 
 
