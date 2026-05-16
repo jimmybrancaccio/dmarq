@@ -1,7 +1,6 @@
 """Tests for the StatsSummarizer with real database queries."""
 
 import hashlib
-import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -195,8 +194,7 @@ class TestStatsSummarizerCaching:
 
         summarizer.calculate_summary_statistics(db_session, domain_id=path_shaping_input)
 
-        expected_cache_file = os.path.join(summarizer.cache_dir, f"domain_{expected_hash}.json")
-        assert os.path.exists(expected_cache_file)
-        expected_cache_path = Path(expected_cache_file).resolve()
+        expected_cache_path = (Path(summarizer.cache_dir) / f"domain_{expected_hash}.json").resolve()
+        assert expected_cache_path.exists()
         cache_dir_path = Path(summarizer.cache_dir).resolve()
         assert expected_cache_path.parent == cache_dir_path
