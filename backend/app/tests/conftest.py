@@ -23,8 +23,11 @@ def _get_model_tables():
     for module_info in iter_modules(models.__path__):
         model_module = import_module(f"{models.__name__}.{module_info.name}")
         for _, model_class in getmembers(model_module, isclass):
-            if isinstance(model_class, type) and issubclass(model_class, Base) and model_class is not Base and hasattr(
-                model_class, "__table__"
+            if (
+                model_class.__module__.startswith(f"{models.__name__}.")
+                and issubclass(model_class, Base)
+                and model_class is not Base
+                and hasattr(model_class, "__table__")
             ):
                 model_tables.append(model_class.__table__)
     return tuple(model_tables)
