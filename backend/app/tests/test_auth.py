@@ -20,6 +20,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from app.api.api_v1.endpoints.auth import _safe_next
 from app.core.logto import (
     SESSION_COOKIE,
     CookieStorage,
@@ -290,6 +291,20 @@ class TestCallbackEndpoint:
                 )
         assert res.status_code == 302
         assert res.headers["location"] == "/dashboard"
+
+
+# ── _safe_next helper ──────────────────────────────────────────────────────────
+
+
+class TestSafeNextHelper:
+    def test_rejects_protocol_relative_with_backslashes(self):
+        assert _safe_next("\\\\evil.com/path") == "/"
+
+    def test_rejects_mixed_slashes_that_become_protocol_relative(self):
+        assert _safe_next("/\\evil.com") == "/"
+
+    def test_preserves_query_and_fragment_for_valid_path(self):
+        assert _safe_next("/dashboard\\reports?tab=mail#policy") == "/dashboard/reports?tab=mail#policy"
 
 
 # ── /api/v1/auth/sign-in ──────────────────────────────────────────────────────
