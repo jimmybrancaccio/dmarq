@@ -1,5 +1,7 @@
 # Import all models so Base.metadata knows every table
+from importlib import import_module
 from inspect import isclass
+from pkgutil import iter_modules
 
 import pytest
 from fastapi import FastAPI
@@ -8,7 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.models import domain, mail_source, report, setting, user
+from app import models
 from app.core.database import Base, get_db
 from app.core.security import require_admin_auth
 from app.main import create_app
@@ -32,9 +34,13 @@ def db_session():
     """
     model_tables = tuple(
         model_class.__table__
-        for model_module in (domain, mail_source, report, setting, user)
+        for module_info in iter_modules(models.__path__)
+        for model_module in (import_module(f"{models.__name__}.{module_info.name}"),)
         for model_class in vars(model_module).values()
-        if isclass(model_class) and issubclass(model_class, Base) and model_class is not Base
+        if isclass(model_class)
+        and issubclass(model_class, Base)
+        and model_class is not Base
+        and hasattr(model_class, "__table__")
     )
     engine = create_engine(
         "sqlite://",
