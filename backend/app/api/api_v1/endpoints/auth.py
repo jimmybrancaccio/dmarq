@@ -57,7 +57,7 @@ def _safe_next(next_url: Optional[str]) -> str:
         if (
             not parts.scheme
             and not parts.netloc
-            and parts.path.startswith("/")
+            and parts.path.startswith(_SAFE_NEXT_PREFIXES)
             and not parts.path.startswith("//")
         ):
             return next_url
