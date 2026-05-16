@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -175,28 +176,30 @@ async def create_domain(domain_data: DomainCreate, db: Session = Depends(get_db)
             detail=validation["errors"],
         )
 
-    store = ReportStore.get_instance()
-    if domain_name in store.get_domains():
+    existing_domain = db.query(Domain).filter(Domain.name == domain_name).first()
+    if existing_domain:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Domain already exists",
         )
 
-    domain_db = db.query(Domain).filter(Domain.name == domain_name).first()
-    if not domain_db:
-        domain_db = Domain(name=domain_name, description=description)
-        db.add(domain_db)
-    else:
-        domain_db.description = description
-        domain_db.active = True
-    db.commit()
+    domain_db = Domain(name=domain_name, description=description, active=True, dmarc_policy=None)
+    db.add(domain_db)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Domain already exists",
+        )
 
-    store.add_domain(domain_name)
+    ReportStore.get_instance().add_domain(domain_name)
 
     return DomainResponse(
         name=domain_name,
         description=description,
-        policy=domain_data.policy,
+        policy=None,
         reports_count=0,
         emails_count=0,
         compliance_rate=0.0,
