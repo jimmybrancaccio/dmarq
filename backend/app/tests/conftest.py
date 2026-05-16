@@ -6,17 +6,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-import app.models.domain as _domain_model  # noqa: F401
-import app.models.mail_source as _mail_source_model  # noqa: F401
-import app.models.report as _report_model  # noqa: F401
-import app.models.setting as _setting_model  # noqa: F401
-import app.models.user as _user_model  # noqa: F401
+from app.models import domain, mail_source, report, setting, user
 from app.core.database import Base, get_db
 from app.core.security import require_admin_auth
 from app.main import create_app
 from app.services.report_store import ReportStore
-
-# Keep model modules imported so SQLAlchemy metadata is fully registered for tests.
 
 
 @pytest.fixture()
@@ -34,19 +28,28 @@ def db_session():
     underlying DBAPI connection so the in-memory database (and its tables)
     persist for the full duration of the test, even across commits.
     """
+    model_tables = (
+        domain.Domain.__table__,
+        domain.UserDomain.__table__,
+        mail_source.MailSource.__table__,
+        report.DMARCReport.__table__,
+        report.ReportRecord.__table__,
+        setting.Setting.__table__,
+        user.User.__table__,
+    )
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine)
+    Base.metadata.create_all(engine, tables=model_tables)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(engine)
+        Base.metadata.drop_all(engine, tables=model_tables)
         engine.dispose()
 
 
