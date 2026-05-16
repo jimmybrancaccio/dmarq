@@ -148,11 +148,28 @@ class StatsSummarizer:
         Returns:
             Path to the cache file
         """
+        cache_root = os.path.realpath(self.cache_dir)
+
         if domain_id is None:
-            return os.path.join(self.cache_dir, "global_summary.json")
-        # Use a deterministic hash so user-controlled input cannot influence path structure
-        domain_key = hashlib.sha256(domain_id.encode("utf-8")).hexdigest()
-        return os.path.join(self.cache_dir, f"domain_{domain_key}.json")
+            cache_file = os.path.join(cache_root, "global_summary.json")
+        else:
+            domain_key = hashlib.sha256(domain_id.encode("utf-8")).hexdigest()
+            cache_file = os.path.join(cache_root, f"domain_{domain_key}.json")
+
+        resolved_cache_file = os.path.realpath(cache_file)
+        try:
+            relative_cache_path = os.path.relpath(resolved_cache_file, cache_root)
+        except ValueError as exc:
+            raise ValueError("Cache path cannot be resolved relative to cache directory") from exc
+
+        if (
+            relative_cache_path == os.curdir
+            or relative_cache_path == os.pardir
+            or relative_cache_path.startswith(f"{os.pardir}{os.sep}")
+        ):
+            raise ValueError("Resolved cache path is outside cache directory")
+
+        return resolved_cache_file
 
     def calculate_summary_statistics(
         self, db: Session, domain_id: Optional[str] = None
