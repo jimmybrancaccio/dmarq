@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
 from app.api.api_v1.endpoints.auth import _create_logto_next_token, _safe_next
+from app.core.config import get_settings as _get_settings
 from app.core.logto import (
     SESSION_COOKIE,
     CookieStorage,
@@ -279,8 +280,6 @@ class TestCallbackEndpoint:
 
     def test_callback_success_respects_logto_next_cookie(self, client: TestClient):
         """After a successful callback the user is redirected to the stored next URL."""
-        from app.core.config import get_settings as _get_settings
-
         claims = self._make_mock_claims()
         mock_client = self._mock_client(claims=claims)
         _real = _get_settings()
