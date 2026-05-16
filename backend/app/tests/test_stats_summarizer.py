@@ -4,6 +4,7 @@ import hashlib
 import os
 import shutil
 import tempfile
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
@@ -196,4 +197,6 @@ class TestStatsSummarizerCaching:
 
         expected_cache_file = os.path.join(summarizer.cache_dir, f"domain_{expected_hash}.json")
         assert os.path.exists(expected_cache_file)
-        assert os.path.commonpath([expected_cache_file, summarizer.cache_dir]) == summarizer.cache_dir
+        expected_cache_path = Path(expected_cache_file).resolve()
+        cache_dir_path = Path(summarizer.cache_dir).resolve()
+        assert expected_cache_path.parent == cache_dir_path
