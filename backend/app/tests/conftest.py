@@ -6,11 +6,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-import app.models.domain as _domain_model
-import app.models.mail_source as _mail_source_model
-import app.models.report as _report_model
-import app.models.setting as _setting_model
-import app.models.user as _user_model
+import app.models.domain as _domain_model  # noqa: F401
+import app.models.mail_source as _mail_source_model  # noqa: F401
+import app.models.report as _report_model  # noqa: F401
+import app.models.setting as _setting_model  # noqa: F401
+import app.models.user as _user_model  # noqa: F401
 from app.core.database import Base, get_db
 from app.core.security import require_admin_auth
 from app.main import create_app
