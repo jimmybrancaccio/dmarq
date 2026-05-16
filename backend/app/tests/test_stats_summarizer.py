@@ -1,5 +1,7 @@
 """Tests for the StatsSummarizer with real database queries."""
 
+import hashlib
+import os
 import shutil
 import tempfile
 
@@ -185,3 +187,13 @@ class TestStatsSummarizerCaching:
         # Should recalculate after invalidation
         stats = summarizer.calculate_summary_statistics(db_session)
         assert stats["total_domains"] == 1
+
+    def test_domain_cache_filename_uses_hash_and_stays_in_cache_dir(self, db_session, summarizer):
+        path_shaping_input = "../x"
+        expected_hash = hashlib.sha256(path_shaping_input.encode("utf-8")).hexdigest()
+
+        summarizer.calculate_summary_statistics(db_session, domain_id=path_shaping_input)
+
+        expected_cache_file = os.path.join(summarizer.cache_dir, f"domain_{expected_hash}.json")
+        assert os.path.exists(expected_cache_file)
+        assert os.path.commonpath([expected_cache_file, summarizer.cache_dir]) == summarizer.cache_dir
