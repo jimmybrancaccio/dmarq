@@ -526,7 +526,7 @@ class TestFetchReports:
             result = client.fetch_reports()
 
         assert result["success"] is False
-        assert "auth error" in result.get("error", "")
+        assert result.get("error") == "Failed to connect to Gmail service."
 
     def test_returns_failure_when_list_messages_raises(self):
         client = _make_client()
@@ -538,6 +538,7 @@ class TestFetchReports:
             result = client.fetch_reports()
 
         assert result["success"] is False
+        assert result.get("error") == "Failed to list Gmail messages."
 
     def test_returns_success_with_no_messages(self):
         client = _make_client()

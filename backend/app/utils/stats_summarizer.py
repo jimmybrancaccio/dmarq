@@ -1,7 +1,7 @@
+import hashlib
 import json
 import logging
 import os
-import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -20,6 +20,15 @@ class StatsSummarizer:
     Utility class for summarizing and caching dashboard statistics
     to improve performance with large datasets.
     """
+
+    @staticmethod
+    def _sanitize_for_log(value: Any) -> str:
+        """
+        Sanitize values before logging to prevent log injection.
+        Removes CR/LF and other non-printable control characters.
+        """
+        text = str(value)
+        return "".join(ch for ch in text if ch.isprintable() and ch not in "\r\n")
 
     def __init__(self, cache_dir: str = None):
         """
@@ -73,7 +82,11 @@ class StatsSummarizer:
             with open(cache_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Error reading cache file %s: %s", cache_file, str(e))
+            logger.warning(
+                "Error reading cache file %s: %s",
+                self._sanitize_for_log(cache_file),
+                self._sanitize_for_log(e),
+            )
             return None
 
     def save_summary(self, stats: Dict[str, Any], domain_id: Optional[str] = None) -> bool:
@@ -99,7 +112,11 @@ class StatsSummarizer:
 
             return True
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Error writing cache file %s: %s", cache_file, str(e))
+            logger.error(
+                "Error writing cache file %s: %s",
+                self._sanitize_for_log(cache_file),
+                self._sanitize_for_log(e),
+            )
             return False
 
     def invalidate_cache(self, domain_id: Optional[str] = None) -> None:
@@ -121,32 +138,6 @@ class StatsSummarizer:
             if os.path.exists(cache_file):
                 os.remove(cache_file)
 
-    def _sanitize_domain_id(self, domain_id: str) -> str:
-        """
-        Validate and sanitize a domain identifier for safe filename usage.
-
-        Args:
-            domain_id: Domain identifier provided by caller
-
-        Returns:
-            Sanitized domain identifier safe for filename composition
-
-        Raises:
-            ValueError: If the domain identifier contains unsafe characters
-        """
-        normalized_domain = domain_id.strip()
-        if not normalized_domain:
-            raise ValueError("Invalid domain_id: empty value")
-
-        if not re.fullmatch(
-            r"[A-Za-z0-9_][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_][A-Za-z0-9_-]*)*",
-            normalized_domain,
-        ):
-            raise ValueError("Invalid domain_id: contains unsafe characters")
-
-        # Convert separators to keep cache filenames filesystem-friendly.
-        return normalized_domain.replace(".", "_")
-
     def _get_cache_filename(self, domain_id: Optional[str] = None) -> str:
         """
         Get the filename for a cache file
@@ -162,8 +153,8 @@ class StatsSummarizer:
         if domain_id is None:
             cache_file = os.path.join(cache_root, "global_summary.json")
         else:
-            safe_domain = self._sanitize_domain_id(domain_id)
-            cache_file = os.path.join(cache_root, f"domain_{safe_domain}.json")
+            domain_key = hashlib.sha256(domain_id.encode("utf-8")).hexdigest()
+            cache_file = os.path.join(cache_root, f"domain_{domain_key}.json")
 
         resolved_cache_file = os.path.realpath(cache_file)
         try:
@@ -171,11 +162,7 @@ class StatsSummarizer:
         except ValueError as exc:
             raise ValueError("Cache path cannot be resolved relative to cache directory") from exc
 
-        if (
-            relative_cache_path == os.curdir
-            or relative_cache_path == os.pardir
-            or relative_cache_path.startswith(f"{os.pardir}{os.sep}")
-        ):
+        if relative_cache_path == os.pardir or relative_cache_path.startswith(f"{os.pardir}{os.sep}"):
             raise ValueError("Resolved cache path is outside cache directory")
 
         return resolved_cache_file

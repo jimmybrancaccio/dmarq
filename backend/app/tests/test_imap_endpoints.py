@@ -127,6 +127,23 @@ class TestImapFetchReports:
         assert response.status_code == 200
         data = response.json()
         assert data["errors"] is not None
+        # Internal error details must not be exposed to API consumers
+        assert "Could not parse email 1" not in data["errors"]
+        assert data["errors"] == "Some emails could not be processed. Check server logs for details."
+
+    def test_fetch_partial_result_on_failure_returns_500(self, authed_client: TestClient):
+        """When fetch_reports returns success=False with a partial dict, endpoint returns 500."""
+        mock_client = MagicMock()
+        mock_client.fetch_reports.return_value = {
+            "success": False,
+            "error": "IMAP credentials not configured",
+            "processed": 0,
+        }
+
+        with patch("app.api.api_v1.endpoints.imap.IMAPClient", return_value=mock_client):
+            response = authed_client.post("/api/v1/imap/fetch-reports?days=7")
+
+        assert response.status_code == 500
 
     def test_fetch_exception_returns_500(self, authed_client: TestClient):
         mock_client = MagicMock()
