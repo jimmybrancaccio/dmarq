@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from app.api.api_v1.endpoints.auth import _safe_next
+from app.api.api_v1.endpoints.auth import _create_logto_next_token, _safe_next
 from app.core.logto import (
     SESSION_COOKIE,
     CookieStorage,
@@ -279,6 +279,27 @@ class TestCallbackEndpoint:
 
     def test_callback_success_respects_logto_next_cookie(self, client: TestClient):
         """After a successful callback the user is redirected to the stored next URL."""
+        from app.core.config import get_settings as _get_settings
+
+        claims = self._make_mock_claims()
+        mock_client = self._mock_client(claims=claims)
+        _real = _get_settings()
+        with patch("app.api.api_v1.endpoints.auth.settings") as mock_settings:
+            mock_settings.logto_configured = True
+            mock_settings.SECRET_KEY = _real.SECRET_KEY
+            mock_settings.ALGORITHM = _real.ALGORITHM
+            signed_next = _create_logto_next_token("/dashboard")
+            with patch("app.api.api_v1.endpoints.auth.make_logto_client", return_value=mock_client):
+                res = client.get(
+                    "/api/v1/auth/callback?code=good",
+                    cookies={"logto_next": signed_next},
+                    follow_redirects=False,
+                )
+        assert res.status_code == 302
+        assert res.headers["location"] == "/dashboard"
+
+    def test_callback_plain_path_cookie_redirects_to_root(self, client: TestClient):
+        """A legacy plain-path logto_next cookie must no longer be trusted; redirect to /."""
         claims = self._make_mock_claims()
         mock_client = self._mock_client(claims=claims)
         with patch("app.api.api_v1.endpoints.auth.settings") as mock_settings:
@@ -290,7 +311,7 @@ class TestCallbackEndpoint:
                     follow_redirects=False,
                 )
         assert res.status_code == 302
-        assert res.headers["location"] == "/dashboard"
+        assert res.headers["location"] == "/"
 
 
 # ── _safe_next helper ──────────────────────────────────────────────────────────

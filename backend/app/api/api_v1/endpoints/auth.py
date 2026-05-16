@@ -82,7 +82,7 @@ def _create_logto_next_token(next_path: str) -> str:
 
 
 def _safe_next_from_cookie(next_cookie: Optional[str]) -> str:
-    """Return a safe redirect path from the signed logto_next cookie when possible."""
+    """Return a safe redirect path from a valid signed logto_next cookie."""
     if not next_cookie:
         return "/"
 
@@ -96,10 +96,9 @@ def _safe_next_from_cookie(next_cookie: Optional[str]) -> str:
         if payload.get("type") == _LOGTO_NEXT_TOKEN_TYPE:
             return _safe_next(payload.get("next"))
     except JWTError:
-        logger.debug("Failed to decode signed logto_next cookie; falling back to legacy plain-path handling.")
+        logger.debug("Failed to decode signed logto_next cookie; defaulting to root redirect.")
 
-    # Backward compatibility with legacy plain-path cookies.
-    return _safe_next(next_cookie)
+    return "/"
 
 
 def _logto_not_configured() -> HTTPException:
