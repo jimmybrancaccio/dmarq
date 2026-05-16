@@ -1,4 +1,6 @@
 # Import all models so Base.metadata knows every table
+from inspect import isclass
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -32,8 +34,7 @@ def db_session():
         model_class.__table__
         for model_module in (domain, mail_source, report, setting, user)
         for model_class in vars(model_module).values()
-        if getattr(model_class, "__module__", None) == model_module.__name__
-        and hasattr(model_class, "__table__")
+        if isclass(model_class) and issubclass(model_class, Base) and model_class is not Base
     )
     engine = create_engine(
         "sqlite://",
