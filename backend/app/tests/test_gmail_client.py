@@ -198,13 +198,14 @@ class TestExchangeCodeForTokens:
         mock_resp.text = '{"error": "invalid_grant"}'
 
         with patch("app.services.gmail_client.httpx.post", return_value=mock_resp):
-            with pytest.raises(ValueError, match="400"):
+            with pytest.raises(ValueError, match="400") as exc_info:
                 GmailClient.exchange_code_for_tokens(
                     client_id="cid",
                     client_secret="csec",
                     code="bad-code",
                     redirect_uri="https://example.com/cb",
                 )
+        assert "invalid_grant" not in str(exc_info.value)
 
 
 # ===========================================================================

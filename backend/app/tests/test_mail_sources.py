@@ -958,7 +958,7 @@ class TestGmailCallbackPost:
 
         with patch(
             "app.api.api_v1.endpoints.mail_sources.GmailClient.exchange_code_for_tokens",
-            side_effect=ValueError("bad exchange"),
+            side_effect=ValueError('Token exchange failed (400): {"error":"invalid_grant"}'),
         ):
             resp = authed_client.post(
                 f"/api/v1/mail-sources/{source_id}/gmail/callback",
@@ -966,6 +966,7 @@ class TestGmailCallbackPost:
             )
 
         assert resp.status_code == 400
+        assert resp.json()["detail"] == "Token exchange failed. Please try again."
 
     def test_post_callback_no_access_token_returns_400(self, authed_client: TestClient):
         create_resp = authed_client.post(

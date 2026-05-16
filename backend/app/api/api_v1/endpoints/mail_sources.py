@@ -541,9 +541,14 @@ async def gmail_oauth_callback_post(
             redirect_uri=payload.redirect_uri,
         )
     except ValueError as exc:
+        logger.warning(
+            "Gmail token exchange failed for source id=%d: %s",
+            int(source_id),
+            _sanitize_for_log(exc),
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail="Token exchange failed. Please try again.",
         ) from exc
 
     access_token = token_data.get("access_token")
