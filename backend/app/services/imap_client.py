@@ -155,10 +155,9 @@ class IMAPClient:
                     mail.store(email_id, "+FLAGS", "\\Deleted")
 
                 stats["processed"] += 1
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            error_msg = f"Error processing email ID {email_id}: {str(e)}"
-            logger.error(error_msg)
-            stats["errors"].append(error_msg)
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.exception("Error processing email ID %s", email_id)
+            stats["errors"].append(f"Error processing email ID {email_id}")
 
     def fetch_reports(self, days: int = 7) -> Dict[str, Any]:
         """
