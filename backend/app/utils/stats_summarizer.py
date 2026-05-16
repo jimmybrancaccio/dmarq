@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -20,6 +21,15 @@ class StatsSummarizer:
     Utility class for summarizing and caching dashboard statistics
     to improve performance with large datasets.
     """
+
+    @staticmethod
+    def _sanitize_for_log(value: Any) -> str:
+        """
+        Sanitize values before logging to prevent log injection.
+        Removes CR/LF and other non-printable control characters.
+        """
+        text = str(value)
+        return "".join(ch for ch in text if ch.isprintable() and ch not in "\r\n")
 
     def __init__(self, cache_dir: str = None):
         """
@@ -73,7 +83,11 @@ class StatsSummarizer:
             with open(cache_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Error reading cache file %s: %s", cache_file, str(e))
+            logger.warning(
+                "Error reading cache file %s: %s",
+                self._sanitize_for_log(cache_file),
+                self._sanitize_for_log(e),
+            )
             return None
 
     def save_summary(self, stats: Dict[str, Any], domain_id: Optional[str] = None) -> bool:
@@ -99,7 +113,11 @@ class StatsSummarizer:
 
             return True
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Error writing cache file %s: %s", cache_file, str(e))
+            logger.error(
+                "Error writing cache file %s: %s",
+                self._sanitize_for_log(cache_file),
+                self._sanitize_for_log(e),
+            )
             return False
 
     def invalidate_cache(self, domain_id: Optional[str] = None) -> None:
@@ -131,32 +149,28 @@ class StatsSummarizer:
         Returns:
             Path to the cache file
         """
-        base_dir = os.path.abspath(self.cache_dir)
+        cache_root = os.path.realpath(self.cache_dir)
+
         if domain_id is None:
-            return os.path.join(base_dir, "global_summary.json")
+            cache_file = os.path.join(cache_root, "global_summary.json")
+        else:
+            domain_key = hashlib.sha256(domain_id.encode("utf-8")).hexdigest()
+            cache_file = os.path.join(cache_root, f"domain_{domain_key}.json")
 
-        # Sanitize domain_id to a strict filename token (allowlist approach).
-        safe_domain = re.sub(r"[^A-Za-z0-9_-]", "_", domain_id)
-        if not safe_domain:
-            safe_domain = "unknown"
+        resolved_cache_file = os.path.realpath(cache_file)
+        try:
+            relative_cache_path = os.path.relpath(resolved_cache_file, cache_root)
+        except ValueError as exc:
+            raise ValueError("Cache path cannot be resolved relative to cache directory") from exc
 
-        filename = f"domain_{safe_domain}.json"
-        candidate_path = os.path.abspath(os.path.join(base_dir, filename))
+        if (
+            relative_cache_path == os.curdir
+            or relative_cache_path == os.pardir
+            or relative_cache_path.startswith(f"{os.pardir}{os.sep}")
+        ):
+            raise ValueError("Resolved cache path is outside cache directory")
 
-        # Ensure the resolved path stays within the cache directory.
-        norm_base_dir = os.path.normcase(base_dir)
-        norm_candidate_path = os.path.normcase(candidate_path)
-        is_within_cache_dir = norm_candidate_path == norm_base_dir or norm_candidate_path.startswith(
-            norm_base_dir + os.sep
-        )
-
-        if not is_within_cache_dir:
-            logger.warning(
-                "Unsafe cache path derived from domain_id=%r; using fallback filename", domain_id
-            )
-            return os.path.join(base_dir, "domain_unknown.json")
-
-        return candidate_path
+        return resolved_cache_file
 
     def calculate_summary_statistics(
         self, db: Session, domain_id: Optional[str] = None
