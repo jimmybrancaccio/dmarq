@@ -164,7 +164,7 @@ class GmailClient:
             },
         )
         if resp.status_code != 200:
-            raise ValueError(f"Token exchange failed ({resp.status_code}): {resp.text}")
+            raise ValueError(f"Token exchange failed ({resp.status_code}).")
         return resp.json()
 
     @staticmethod
