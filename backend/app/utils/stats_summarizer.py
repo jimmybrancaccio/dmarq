@@ -162,7 +162,11 @@ class StatsSummarizer:
         except ValueError as exc:
             raise ValueError("Cache path cannot be resolved relative to cache directory") from exc
 
-        if relative_cache_path == os.pardir or relative_cache_path.startswith(f"{os.pardir}{os.sep}"):
+        if (
+            relative_cache_path == os.curdir
+            or relative_cache_path == os.pardir
+            or relative_cache_path.startswith(f"{os.pardir}{os.sep}")
+        ):
             raise ValueError("Resolved cache path is outside cache directory")
 
         return resolved_cache_file
