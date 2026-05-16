@@ -3,6 +3,7 @@ Additional tests for app.core.security covering JWT, password utilities,
 create_access_token, and require_admin_auth branches not yet exercised.
 """
 
+import logging
 from datetime import timedelta
 
 import pytest
@@ -184,6 +185,22 @@ class TestGetApiKeyDependency:
         with pytest.raises(HTTPException) as exc_info:
             await get_api_key("this-key-does-not-exist")
         assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_invalid_key_warning_excludes_key_material(self, caplog):
+        from fastapi import HTTPException
+
+        from app.core.security import get_api_key
+
+        invalid_key = "super-secret-key-12345678"
+        with caplog.at_level(logging.WARNING, logger="app.core.security"):
+            with pytest.raises(HTTPException):
+                await get_api_key(invalid_key)
+
+        messages = " ".join(record.getMessage() for record in caplog.records)
+        assert "Invalid API key attempt" in messages
+        assert invalid_key not in messages
+        assert invalid_key[-8:] not in messages
 
     @pytest.mark.asyncio
     async def test_valid_key_returns_key(self):
