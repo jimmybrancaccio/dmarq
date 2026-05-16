@@ -16,6 +16,7 @@ from app.core.security import require_admin_auth
 from app.main import create_app
 from app.services.report_store import ReportStore
 
+# Keep model modules imported and referenced so SQLAlchemy metadata is fully registered for tests.
 _IMPORTED_MODEL_MODULES = (
     _domain_model,
     _mail_source_model,
