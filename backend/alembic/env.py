@@ -1,4 +1,5 @@
 import os
+from importlib import import_module
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -24,10 +25,14 @@ if database_url:
 
 # Import all models so that autogenerate can detect them
 from app.core.database import Base  # noqa: E402
-import app.models.domain  # noqa: E402, F401
-import app.models.report  # noqa: E402, F401
-import app.models.setting  # noqa: E402, F401
-import app.models.user  # noqa: E402, F401
+
+for model_module in (
+    "app.models.domain",
+    "app.models.report",
+    "app.models.setting",
+    "app.models.user",
+):
+    import_module(model_module)
 
 target_metadata = Base.metadata
 
