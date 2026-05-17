@@ -7,9 +7,9 @@ Covers API key management, domain validation, file upload limits, and XML parsin
 import pytest
 from fastapi.testclient import TestClient
 
+import app.main as main_module
 import app.core.security as sec_module
 import app.services.dmarc_parser as parser_module
-from app.main import create_app
 from app.utils.domain_validator import validate_domain, validate_domain_config
 
 
@@ -159,15 +159,13 @@ class TestAdminApiKeyStartup:
 
     def test_startup_uses_env_api_key(self, monkeypatch):
         """When ADMIN_API_KEY is configured, startup should register it directly."""
-        import app.main as main_module
-
         test_key = "a" * 64
         monkeypatch.setattr(main_module.settings, "ADMIN_API_KEY", test_key)
 
         saved_keys = set(sec_module._api_keys)
         sec_module._api_keys.clear()
         try:
-            application = create_app()
+            application = main_module.create_app()
             with TestClient(application):
                 assert sec_module.verify_api_key(test_key)
         finally:
@@ -176,14 +174,12 @@ class TestAdminApiKeyStartup:
 
     def test_startup_generates_key_when_no_env(self, monkeypatch):
         """When ADMIN_API_KEY is not set, startup should generate a random key."""
-        import app.main as main_module
-
         monkeypatch.setattr(main_module.settings, "ADMIN_API_KEY", None)
 
         saved_keys = set(sec_module._api_keys)
         sec_module._api_keys.clear()
         try:
-            application = create_app()
+            application = main_module.create_app()
             with TestClient(application):
                 assert len(sec_module._api_keys) == 1
         finally:
