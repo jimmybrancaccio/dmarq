@@ -80,11 +80,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "default-src 'self'",
             # TODO: Remove 'unsafe-inline' - requires moving inline scripts to external files  # pylint: disable=fixme
             # TODO: Remove 'unsafe-eval' - no eval usage detected, safe to remove after testing  # pylint: disable=fixme
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-            " https://cdn.tailwindcss.com https://cdn.jsdelivr.net",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net",
             # TODO: Remove 'unsafe-inline' - requires moving inline styles to CSS or using nonces  # pylint: disable=fixme
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
-            " https://cdn.jsdelivr.net",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https:",
             "connect-src 'self'",
