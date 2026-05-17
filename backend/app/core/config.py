@@ -105,6 +105,7 @@ class Settings(BaseSettings):
         return v or None
 
     @validator("SECRET_KEY", pre=True, always=True)
+    @classmethod
     def validate_secret_key(cls, v: Optional[str]) -> str:  # pylint: disable=no-self-argument
         """Validate and generate SECRET_KEY if not provided."""
         # Default insecure key that should never be used
@@ -132,6 +133,7 @@ class Settings(BaseSettings):
         return v
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
+    @classmethod
     def assemble_cors_origins(  # pylint: disable=no-self-argument
         cls, v: Union[str, List[str]]
     ) -> List[str]:
