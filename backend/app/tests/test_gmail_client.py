@@ -6,9 +6,9 @@ tests never make real network calls.
 """
 
 import base64
-import email as email_mod
 import json
 from email import encoders as email_encoders
+from email import message_from_bytes
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -435,7 +435,7 @@ class TestProcessMessage:
 class TestProcessAttachments:
     def test_no_attachments_returns_zero(self):
         client = _make_client()
-        msg = email_mod.message_from_bytes(b"From: a@b.com\r\nTo: c@d.com\r\n\r\nHello")
+        msg = message_from_bytes(b"From: a@b.com\r\nTo: c@d.com\r\n\r\nHello")
         stats = {"reports_found": 0, "errors": []}
         count = client._process_attachments(msg, stats)
         assert count == 0
@@ -444,7 +444,7 @@ class TestProcessAttachments:
         """An inline or non-DMARC file should not count as a report."""
         client = _make_client()
         raw = _make_raw_email([{"filename": "photo.png", "content": b"\x89PNG"}])
-        msg = email_mod.message_from_bytes(raw)
+        msg = message_from_bytes(raw)
         stats = {"reports_found": 0, "errors": []}
         count = client._process_attachments(msg, stats)
         assert count == 0
@@ -454,7 +454,7 @@ class TestProcessAttachments:
         """A .xml attachment is parsed via DMARCParser and counts as a report."""
         client = _make_client()
         raw = _make_raw_email([{"filename": "report.xml", "content": b"<xml_content/>"}])
-        msg = email_mod.message_from_bytes(raw)
+        msg = message_from_bytes(raw)
         stats = {"reports_found": 0, "errors": []}
 
         mock_report = {"domain": "example.com", "records": []}
@@ -474,7 +474,7 @@ class TestProcessAttachments:
         client = _make_client()
         # Build an attachment with empty bytes – base64 of b"" is b""
         raw = _make_raw_email([{"filename": "report.zip", "content": b""}])
-        msg = email_mod.message_from_bytes(raw)
+        msg = message_from_bytes(raw)
         stats = {"reports_found": 0, "errors": []}
         count = client._process_attachments(msg, stats)
         # Empty payload → `get_payload(decode=True)` returns b"" which is
@@ -490,7 +490,7 @@ class TestProcessAttachments:
                 {"filename": "good.xml", "content": b"<xml/>"},
             ]
         )
-        msg = email_mod.message_from_bytes(raw)
+        msg = message_from_bytes(raw)
         stats = {"reports_found": 0, "errors": []}
 
         good_report = {"domain": "example.com", "records": []}
