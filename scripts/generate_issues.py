@@ -10,7 +10,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List
 from dataclasses import dataclass, asdict
 
 
